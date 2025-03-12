@@ -43,7 +43,7 @@ This pipeline processes RNA-seq data using the following steps:
     ```
     {sample}.fastq.gz
     ```
-    Where {sample} is your sample name.
+    Where `{sample}` is your sample name.
 
 ### Step 4: Configure the Workflow
 
