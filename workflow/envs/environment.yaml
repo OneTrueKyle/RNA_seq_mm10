@@ -1,0 +1,17 @@
+name: rnaseq_preprocess_pipeline
+channels:
+ - conda-forge
+ - bioconda
+dependencies:
+  - python=3.9
+  - snakemake=7.1.0
+  - fastqc=0.11.9
+  - fastp=0.20.1
+  - hisat2=2.2.1
+  - subread=2.0.1
+  - multiqc=1.11
+  - samtools=1.16.1
+  - htseq=0.13.5
+  - conda-build
+  - libgfortran
+  - zlib

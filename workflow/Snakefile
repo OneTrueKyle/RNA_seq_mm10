@@ -1,0 +1,119 @@
+import os
+
+configfile: "config.yaml"
+
+rule all:
+    input:
+        expand("results/featurecounts/{sample}.counts.txt", sample=config["samples"]),
+        "results/multiqc/multiqc_report.html"
+
+# Step 1: FastQC on Raw Reads (Optional)
+rule fastqc_raw:
+    input:
+        fastq="raw_data/{sample}.fastq.gz"
+    output:
+        html="results/fastqc/{sample}_fastqc.html",
+        zip="results/fastqc/{sample}_fastqc.zip"
+    threads: 2
+    log:
+        "logs/fastqc/{sample}.log"
+    shell:
+        """
+        fastqc -t {threads} {input.fastq} --outdir results/fastqc/ > {log} 2>&1
+        """
+
+# Step 2: Quality Filtering with FastP
+rule filter_reads:
+    input:
+        fastq="raw_data/{sample}.fastq.gz"
+    output:
+        fastq_filtered="results/fastp/{sample}.filtered.fastq.gz",
+        html="results/fastp/{sample}.html",
+        json="results/fastp/{sample}.json"
+    params:
+        quality = 20,
+    threads: 6
+    log:
+        "logs/fastp/{sample}.log"
+    shell:
+        """
+        fastp -i {input.fastq} \
+            -q {params.quality} \
+              -o {output.fastq_filtered} \
+              --html {output.html} --json {output.json} \
+              -w {threads} > {log} 2>&1
+        """
+
+# Step 3: FastQC on Filtered Reads (Optional)
+rule fastqc_filtered:
+    input:
+        fastq="results/fastp/{sample}.filtered.fastq.gz"
+    output:
+        html="results/fastqc/{sample}_filtered_fastqc.html",
+        zip="results/fastqc/{sample}_filtered_fastqc.zip"
+    threads: 2
+    log:
+        "logs/fastqc/{sample}_filtered.log"
+    shell:
+        """
+        fastqc -t {threads} {input.fastq} --outdir results/fastqc/ > {log} 2>&1
+        """
+
+# Step 4: Align to mm10 genome with HISAT2
+rule align_hisat2:
+    input:
+        fastq="results/fastp/{sample}.filtered.fastq.gz",
+        index="reference/mm10_hisat2"
+    output:
+        sam="results/hisat2/{sample}.sorted.bam"
+        unsorted_bam="results/hisat2/{sample}.unsorted.bam",
+        sorted_bam="results/hisat2/{sample}.sorted.bam",
+        hisat2_log="logs/hisat2/{sample}.hisat2.log",
+        hisat2_summary="results/hisat2/{sample}.summary.txt"
+    threads: 6
+    log:
+        "logs/hisat2/{sample}.log"
+    shell:
+        """
+        hisat2 -p {threads} -x {input.index} \
+            -U {input.fastq} --new-summary \
+            --summary-file {output.summary} -S {output.sam} \
+        samtools view -b -o {output.unsorted_bam} {output.sam} \
+        samtools sort -@ {threads} -o {output.sorted_bam} \
+            {input.unsorted_bam} \
+        > {log} 2>&1
+        """
+
+# Step 5: Gene Expression Quantification with FeatureCounts
+rule quantify_featurecounts:
+    input:
+        bam="results/hisat2/{sample}.sorted.bam",
+        annotation="reference/mm10.gtf"
+    output:
+        counts="results/featurecounts/{sample}.counts.txt"
+    threads: 4
+    log:
+        "logs/featurecounts/{sample}.log"
+    shell:
+        """
+        featureCounts -T {threads} -a {input.annotation} -o {output.counts} {input.bam} \
+            > {log} 2>&1
+        """
+
+# Step 6: Run MultiQC (Summarize reports)
+rule multiqc:
+    input:
+        expand("results/fastqc/{sample}_fastqc.html", sample=config["samples"]) if config["run_fastqc"]["raw"] else [],
+        expand("results/fastp/{sample}_fastp.json", sample=config["samples"]),
+        expand("results/fastqc/{sample}_filtered_fastqc.html", sample=config["samples"]) if config["run_fastqc"]["filtered"] else [],
+        expand("log/hisat2/{sample}.hisat2_log", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
+        expand("results/hisat2/{sample}.summary.txt", sample=config["samples"]) if config["run_hisat2_multiqc"] else []
+    output:
+        "results/multiqc/multiqc_report.html"
+    threads: 1
+    log:
+        "logs/multiqc.log"
+    shell:
+        """
+        multiqc {input} -o results/multiqc/ > {log} 2>&1
+        """

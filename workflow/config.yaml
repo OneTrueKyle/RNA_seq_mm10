@@ -1,0 +1,14 @@
+samples:
+  - sample1
+  - sample2
+  - sample3
+
+reference:
+  mm10_hisat2: "reference/mm10_hisat2_index"
+  mm10_gtf: "reference/mm10.gtf"
+
+run_fastqc:
+  raw: true
+  filtered: true
+
+run_hisat2_multiqc: true
