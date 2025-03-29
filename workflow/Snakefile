@@ -108,6 +108,7 @@ rule multiqc:
         expand("results/fastqc/{sample}_filtered_fastqc.html", sample=config["samples"]) if config["run_fastqc"]["filtered"] else [],
         expand("log/hisat2/{sample}.hisat2_log", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
         expand("results/hisat2/{sample}.summary.txt", sample=config["samples"]) if config["run_hisat2_multiqc"] else []
+        expand("results/featurecounts/{sample}.counts.txt", sample=config["samples"])
     output:
         "results/multiqc/multiqc_report.html"
     threads: 1
