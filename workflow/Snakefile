@@ -1,6 +1,6 @@
 import os
 
-configfile: "config.yaml"
+configfile: "workflow/config.yaml"
 
 rule all:
     input:
@@ -10,7 +10,7 @@ rule all:
 # Step 1: FastQC on Raw Reads (Optional)
 rule fastqc_raw:
     input:
-        fastq="raw_data/{sample}.fastq.gz"
+        fastq=expand("raw_data/{sample}.fastq.gz", sample=config["samples"])
     output:
         html="results/fastqc/{sample}_fastqc.html",
         zip="results/fastqc/{sample}_fastqc.zip"
@@ -25,7 +25,7 @@ rule fastqc_raw:
 # Step 2: Quality Filtering with FastP
 rule filter_reads:
     input:
-        fastq="raw_data/{sample}.fastq.gz"
+        fastq=expand("raw_data/{sample}.fastq.gz", sample=config["samples"])
     output:
         fastq_filtered="results/fastp/{sample}.filtered.fastq.gz",
         html="results/fastp/{sample}.html",
@@ -49,46 +49,44 @@ rule fastqc_filtered:
     input:
         fastq="results/fastp/{sample}.filtered.fastq.gz"
     output:
-        html="results/fastqc/{sample}_filtered_fastqc.html",
-        zip="results/fastqc/{sample}_filtered_fastqc.zip"
+        html="results/fastpqc/{sample}.filtered_fastqc.html",
+        zip="results/fastpqc/{sample}.filtered_fastqc.zip"
     threads: 2
     log:
         "logs/fastqc/{sample}_filtered.log"
     shell:
         """
-        fastqc -t {threads} {input.fastq} --outdir results/fastqc/ > {log} 2>&1
+        fastqc -t {threads} {input.fastq} --outdir results/fastpqc/ > {log} 2>&1
         """
 
 # Step 4: Align to mm10 genome with HISAT2
 rule align_hisat2:
     input:
         fastq="results/fastp/{sample}.filtered.fastq.gz",
-        index="reference/mm10_hisat2"
     output:
-        sam="results/hisat2/{sample}.sorted.bam"
         unsorted_bam="results/hisat2/{sample}.unsorted.bam",
         sorted_bam="results/hisat2/{sample}.sorted.bam",
-        hisat2_log="logs/hisat2/{sample}.hisat2.log",
-        hisat2_summary="results/hisat2/{sample}.summary.txt"
+        sam="results/hisat2/{sample}.sam",
+        summary="results/hisat2/{sample}.summary.txt"
     threads: 6
-    log:
-        "logs/hisat2/{sample}.log"
+    params:
+        index=config["reference"]["mm10_hisat2"]
+    log: "results/hisat2/{sample}.hisat2_log"
     shell:
         """
-        hisat2 -p {threads} -x {input.index} \
+        hisat2 -p {threads} -x {params.index} \
             -U {input.fastq} --new-summary \
-            --summary-file {output.summary} -S {output.sam} \
-        samtools view -b -o {output.unsorted_bam} {output.sam} \
+            --summary-file {output.summary} -S {output.sam} > {log} 2>&1
+        samtools view -b -o {output.unsorted_bam} {output.sam}
         samtools sort -@ {threads} -o {output.sorted_bam} \
-            {input.unsorted_bam} \
-        > {log} 2>&1
+            {output.unsorted_bam}
         """
 
 # Step 5: Gene Expression Quantification with FeatureCounts
 rule quantify_featurecounts:
     input:
         bam="results/hisat2/{sample}.sorted.bam",
-        annotation="reference/mm10.gtf"
+        annotation=config["reference"]["mm10_gtf"]
     output:
         counts="results/featurecounts/{sample}.counts.txt"
     threads: 4
@@ -103,11 +101,11 @@ rule quantify_featurecounts:
 # Step 6: Run MultiQC (Summarize reports)
 rule multiqc:
     input:
-        expand("results/fastqc/{sample}_fastqc.html", sample=config["samples"]) if config["run_fastqc"]["raw"] else [],
-        expand("results/fastp/{sample}_fastp.json", sample=config["samples"]),
-        expand("results/fastqc/{sample}_filtered_fastqc.html", sample=config["samples"]) if config["run_fastqc"]["filtered"] else [],
-        expand("log/hisat2/{sample}.hisat2_log", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
-        expand("results/hisat2/{sample}.summary.txt", sample=config["samples"]) if config["run_hisat2_multiqc"] else []
+        expand("results/fastqc/{sample}_fastqc.zip", sample=config["samples"]) if config["run_fastqc"]["raw"] else [],
+        expand("results/fastp/{sample}.json", sample=config["samples"]),
+        expand("results/fastpqc/{sample}.filtered_fastqc.zip", sample=config["samples"]) if config["run_fastqc"]["filtered"] else [],
+        expand("results/hisat2/{sample}.hisat2_log", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
+        expand("results/hisat2/{sample}.summary.txt", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
         expand("results/featurecounts/{sample}.counts.txt", sample=config["samples"])
     output:
         "results/multiqc/multiqc_report.html"

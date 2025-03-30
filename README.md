@@ -25,7 +25,7 @@ This pipeline processes RNA-seq data using the following steps:
 
 1. Create the Conda environment using the `environment.yml` file: `conda env create -f workflow/envs/environment.yml`
 
-1. Activate the environment:  `conda activate rnaseq_pipeline`
+1. Activate the environment:  `conda activate rnaseq_preprocess_pipeline`
 
 
 ### Step 2: Prepare mm10 Reference Files
@@ -35,7 +35,7 @@ This pipeline processes RNA-seq data using the following steps:
 
 
 ##### This will: 
-- Download the mm10 genome (FASTA) and GTF file from Ensembl.
+- Download the mm10 genome (FASTA) and GTF file from NCBI and Ensembl.
 - Build the HISAT2 index in the reference/mm10_hisat2_index/ directory.
 
 ### Step 3: Prepare Your Input Data

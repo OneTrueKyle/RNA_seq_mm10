@@ -1,3 +1,5 @@
 .snakemake/
 results/
 reference/
+logs/
+raw_data/

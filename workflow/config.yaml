@@ -4,7 +4,7 @@ samples:
   - sample3
 
 reference:
-  mm10_hisat2: "reference/mm10_hisat2_index"
+  mm10_hisat2: "reference/mm10_hisat2_index/mm10"
   mm10_gtf: "reference/mm10.gtf"
 
 run_fastqc:
