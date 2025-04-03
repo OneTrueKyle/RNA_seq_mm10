@@ -25,7 +25,7 @@ rule fastqc_raw:
 # Step 2: Quality Filtering with FastP
 rule filter_reads:
     input:
-        fastq=expand("raw_data/{sample}.fastq.gz", sample=config["samples"])
+        fastq="raw_data/{sample}.fastq.gz"
     output:
         fastq_filtered="results/fastp/{sample}.filtered.fastq.gz",
         html="results/fastp/{sample}.html",
@@ -64,9 +64,7 @@ rule align_hisat2:
     input:
         fastq="results/fastp/{sample}.filtered.fastq.gz",
     output:
-        unsorted_bam="results/hisat2/{sample}.unsorted.bam",
-        sorted_bam="results/hisat2/{sample}.sorted.bam",
-        sam="results/hisat2/{sample}.sam",
+        bam="results/hisat2/{sample}.bam",
         summary="results/hisat2/{sample}.summary.txt"
     threads: 6
     params:
@@ -74,21 +72,21 @@ rule align_hisat2:
     log: "results/hisat2/{sample}.hisat2_log"
     shell:
         """
-        hisat2 -p {threads} -x {params.index} \
+        hisat2 -p 5 -x {params.index} \
             -U {input.fastq} --new-summary \
-            --summary-file {output.summary} -S {output.sam} > {log} 2>&1
-        samtools view -b -o {output.unsorted_bam} {output.sam}
-        samtools sort -@ {threads} -o {output.sorted_bam} \
-            {output.unsorted_bam}
+            --summary-file {output.summary} | \
+        samtools view -b | \
+        samtools sort -@ 1 -o {output.bam} 2>{log}
         """
 
 # Step 5: Gene Expression Quantification with FeatureCounts
 rule quantify_featurecounts:
     input:
-        bam="results/hisat2/{sample}.sorted.bam",
+        bam="results/hisat2/{sample}.bam",
         annotation=config["reference"]["mm10_gtf"]
     output:
-        counts="results/featurecounts/{sample}.counts.txt"
+        counts="results/featurecounts/{sample}.counts.txt",
+        summary="results/featurecounts/{sample}.counts.txt.summary"
     threads: 4
     log:
         "logs/featurecounts/{sample}.log"
@@ -106,7 +104,7 @@ rule multiqc:
         expand("results/fastpqc/{sample}.filtered_fastqc.zip", sample=config["samples"]) if config["run_fastqc"]["filtered"] else [],
         expand("results/hisat2/{sample}.hisat2_log", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
         expand("results/hisat2/{sample}.summary.txt", sample=config["samples"]) if config["run_hisat2_multiqc"] else [],
-        expand("results/featurecounts/{sample}.counts.txt", sample=config["samples"])
+        expand("results/featurecounts/{sample}.counts.txt.summary", sample=config["samples"])
     output:
         "results/multiqc/multiqc_report.html"
     threads: 1
@@ -114,5 +112,5 @@ rule multiqc:
         "logs/multiqc.log"
     shell:
         """
-        multiqc {input} -o results/multiqc/ > {log} 2>&1
+        multiqc results/ -o results/multiqc/ > {log} 2>&1
         """
