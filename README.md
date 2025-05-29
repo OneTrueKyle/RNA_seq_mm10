@@ -45,6 +45,8 @@ This pipeline processes RNA-seq data using the following steps:
     ```
     Where `{sample}` is your sample name.
 
+- Optional: convert GTF file if need with `convert.py`
+
 ### Step 4: Configure the Workflow
 
 - Edit the `workflow/config.yaml` file to list the sample names and reference paths:

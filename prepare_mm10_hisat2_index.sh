@@ -12,7 +12,7 @@ mkdir -p $HISAT2_INDEX_DIR
 printf "Downloading mm10 genome FASTA...\n"
 curl -L -o $GENOME_FASTA.gz ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.26_GRCm38.p6/GCF_000001635.26_GRCm38.p6_genomic.fna.gz
 printf "Downloading mm10 genome GTF annotation...\n"
-curl -L -o $GTF_FILE.gz ftp://ftp.ensembl.org/pub/release-102/gtf/mus_musculus/Mus_musculus.GRCm38.102.gtf.gz
+curl -L -o $GTF_FILE.gz ftp://ftp.ensembl.org/pub/release-109/gtf/mus_musculus/Mus_musculus.GRCm38.109.gtf.gz
 
 printf "Unzipping mm10 genome...\n"
 gunzip $GENOME_FASTA.gz
